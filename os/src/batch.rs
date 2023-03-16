@@ -51,6 +51,8 @@ struct AppManager {
     num_app: usize,
     current_app: usize,
     app_start: [usize; MAX_APP_NUM + 1],
+    // app_exec_start_time: usize,
+    // app_exec_end_time: usize,
 }
 
 impl AppManager {
@@ -116,6 +118,8 @@ lazy_static! {
                 num_app,
                 current_app: 0,
                 app_start,
+                // app_exec_start_time: 0,
+                // app_exec_end_time: 0,
             }
         })
     };

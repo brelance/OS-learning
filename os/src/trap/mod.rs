@@ -66,4 +66,8 @@ pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
     cx
 }
 
+pub fn exception_trace() {
+    
+}
+
 pub use context::TrapContext;
