@@ -55,6 +55,7 @@ fn clear_bss() {
 pub fn rust_main() -> ! {
     clear_bss();
     println!("[kernel] Hello, world!");
+    error!("[kernel] hello, world");
     trap::init();
     batch::init();
     batch::run_next_app();
