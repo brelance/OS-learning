@@ -153,3 +153,18 @@ pub fn run_next_app() -> ! {
     }
     panic!("Unreachable in batch::run_current_app!");
 }
+
+/// get task information
+pub unsafe fn get_taskinfo(task_info: *mut usize) -> isize {
+    let app_manager = APP_MANAGER.exclusive_access();
+    let task_id = app_manager.get_current_app();
+    task_info.write(task_id);
+    task_info.add(1).write(app_manager.app_start[task_id]);
+    task_info.add(1).write(app_manager.app_start[task_id + 1]);
+
+    drop(app_manager);
+    1
+
+    // let task_info_dst = core::slice::from_raw_parts_mut(task_info.add(1), 3);
+    // task_info_dst.copy_from_slice(task_info_src);
+}
