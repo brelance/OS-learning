@@ -18,10 +18,10 @@ mod task;
 use crate::config::MAX_APP_NUM;
 use crate::loader::{get_num_app, init_app_cx};
 use crate::sync::UPSafeCell;
-use crate::task::switch::{task_switch, print_switch_time};
+use crate::task::switch::{print_switch_time, task_switch};
 use crate::timer::get_time_ms;
 use lazy_static::*;
-use task::{TaskControlBlock, TaskStatus};
+use task::{TaskControlBlock, TaskInfo, TaskStatus};
 
 pub use context::TaskContext;
 
@@ -54,15 +54,18 @@ lazy_static! {
     /// Global variable: TASK_MANAGER
     pub static ref TASK_MANAGER: TaskManager = {
         let num_app = get_num_app();
+        let task_info = TaskInfo::new();
         let mut tasks = [TaskControlBlock {
             task_cx: TaskContext::zero_init(),
-            task_status: TaskStatus::UnInit,
+            task_info,
             kernel_time: 0,
             user_time: 0,
         }; MAX_APP_NUM];
         for (i, task) in tasks.iter_mut().enumerate() {
             task.task_cx = TaskContext::goto_restore(init_app_cx(i));
-            task.task_status = TaskStatus::Ready;
+            task.task_info.status =TaskStatus::Ready;
+
+            task.task_info.id = i;
         }
         TaskManager {
             num_app,
@@ -85,7 +88,8 @@ impl TaskManager {
     fn run_first_task(&self) -> ! {
         let mut inner = self.inner.exclusive_access();
         let task0 = &mut inner.tasks[0];
-        task0.task_status = TaskStatus::Running;
+        task0.task_info.status = TaskStatus::Running;
+        task0.task_info.time = get_time_ms();
         let next_task_cx_ptr = &task0.task_cx as *const TaskContext;
         let mut _unused = TaskContext::zero_init();
 
@@ -108,7 +112,8 @@ impl TaskManager {
     fn mark_current_suspended(&self) {
         let mut inner = self.inner.exclusive_access();
         let current = inner.current_task;
-        inner.tasks[current].task_status = TaskStatus::Ready;
+        inner.tasks[current].task_info.status = TaskStatus::Ready;
+
         inner.tasks[current].kernel_time += inner.refresh_stop_time();
 
         println!("tasks[{}]: Running to Ready", current);
@@ -118,12 +123,20 @@ impl TaskManager {
     fn mark_current_exited(&self) {
         let mut inner = self.inner.exclusive_access();
         let current = inner.current_task;
-        inner.tasks[current].task_status = TaskStatus::Exited;
+        inner.tasks[current].task_info.status = TaskStatus::Exited;
+
         inner.tasks[current].kernel_time += inner.refresh_stop_time();
+        let start_time = inner.tasks[current].task_info.time;
+        let exit_time = get_time_ms();
+
+        inner.tasks[current].task_info.time = exit_time - start_time;
 
         println!(
-            "tasks[{}] excited. user_time: {} ms, kernel_time: {} ms",
-            current, inner.tasks[current].user_time, inner.tasks[current].kernel_time
+            "tasks[{}] excited. user_time: {} ms, kernel_time: {} ms exec_time: {}",
+            current,
+            inner.tasks[current].user_time,
+            inner.tasks[current].kernel_time,
+            inner.tasks[current].task_info.time
         );
         drop(inner);
     }
@@ -136,7 +149,7 @@ impl TaskManager {
         let current = inner.current_task;
         (current + 1..current + self.num_app + 1)
             .map(|id| id % self.num_app)
-            .find(|id| inner.tasks[*id].task_status == TaskStatus::Ready)
+            .find(|id| inner.tasks[*id].task_info.status == TaskStatus::Ready)
     }
 
     /// Switch current `Running` task to the task we have found,
@@ -145,11 +158,12 @@ impl TaskManager {
         if let Some(next) = self.find_next_task() {
             let mut inner = self.inner.exclusive_access();
             let current = inner.current_task;
-            inner.tasks[next].task_status = TaskStatus::Running;
+            inner.tasks[current].task_info.status = TaskStatus::Running;
+
             inner.current_task = next;
             let current_task_cx_ptr = &mut inner.tasks[current].task_cx as *mut TaskContext;
             let next_task_cx_ptr = &inner.tasks[next].task_cx as *const TaskContext;
-            println!("tasks[{}]: Ready to Running", current);
+            println!("tasks[{}]: Ready to Running", next);
 
             // before this, we should drop local variables that must be dropped manually
             // unsafe {
@@ -157,6 +171,11 @@ impl TaskManager {
             // }
 
             inner.refresh_stop_time();
+
+            if inner.tasks[next].task_info.time == 0 {
+                inner.tasks[next].task_info.time = get_time_ms();
+            }
+            
             drop(inner);
 
             unsafe {
@@ -165,7 +184,9 @@ impl TaskManager {
             // go back to user mode
         } else {
             println!("All applications completed!");
-            unsafe { print_switch_time(); }
+            unsafe {
+                print_switch_time();
+            }
             use crate::board::QEMUExit;
             crate::board::QEMU_EXIT_HANDLE.exit_success();
         }
@@ -182,6 +203,24 @@ impl TaskManager {
         let current = inner.current_task;
         inner.tasks[current].user_time += inner.refresh_stop_time();
         drop(inner);
+    }
+
+    fn set_syscall_info(&self, sys_info_id: usize) {
+        let mut inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        inner.tasks[current].task_info.call[sys_info_id].times += 1;
+        drop(inner);
+    }
+
+    fn get_task_info(&self, task_id: usize, ts: *mut TaskInfo) -> isize {
+        if task_id > MAX_APP_NUM {
+            println!("[kernel]: get_task_info task_id {} > max_app_num", task_id);
+            return -1;
+        }
+        let inner = self.inner.exclusive_access();
+        unsafe { ts.write(inner.tasks[task_id].task_info) };
+        drop(inner);
+        1
     }
 }
 
@@ -225,7 +264,6 @@ pub fn exit_current_and_run_next() {
     run_next_task();
 }
 
-
 /// user_time start point
 pub fn user_time_start() {
     TASK_MANAGER.user_time_start();
@@ -234,4 +272,14 @@ pub fn user_time_start() {
 /// user_time end point
 pub fn user_time_end() {
     TASK_MANAGER.user_time_end();
+}
+
+/// set system call information in task_info
+pub fn set_syscall_info(sys_info_id: usize) {
+    TASK_MANAGER.set_syscall_info(sys_info_id);
+}
+
+/// get task information
+pub fn get_task_info(task_id: usize, ts: *mut usize) -> isize {
+    TASK_MANAGER.get_task_info(task_id, ts as *mut TaskInfo)
 }

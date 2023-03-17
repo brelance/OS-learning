@@ -26,9 +26,7 @@ pub unsafe fn print_switch_time() {
 
 pub unsafe fn task_switch(current_task_cx_ptr: *mut TaskContext, next_task_cx_ptr: *const TaskContext) {
     SWITCH_TIME_START = get_time_us();
-    println!("SWITCH_TIME_START: {}", SWITCH_TIME_START);
     __switch(current_task_cx_ptr, next_task_cx_ptr);
-    println!("SWITCH_TIME_START: {}", SWITCH_TIME_COUNTER);
 
     SWITCH_TIME_COUNTER += get_time_us() - SWITCH_TIME_START;
 }
