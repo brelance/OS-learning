@@ -37,7 +37,7 @@ macro_rules! println {
 #[macro_export]
 macro_rules! error {
     ($fmt: literal $(, $($arg: tt)+)?) => {
-        $crate::console::print(format_args!(concat!("\x1b[31m", $fmt, "\x1b[0m", "\n") $(, $($arg)+)?));
+        $crate::console::print(format_args!(concat!("\x1b[31m", "[error] ", $fmt, "\x1b[0m", "\n") $(, $($arg)+)?));
     }
 }
 
@@ -45,7 +45,7 @@ macro_rules! error {
 #[macro_export]
 macro_rules! warn {
     ($fmt: literal $(, $($arg: tt)+)?) => {
-        $crate::console::print(format_args!(concat!("\x1b[93m", $fmt, "\x1b[0m", "\n") $(, $($arg)+)?));
+        $crate::console::print(format_args!(concat!("\x1b[93m", "[warn] ", $fmt, "\x1b[0m", "\n") $(, $($arg)+)?));
     }
 }
 
@@ -53,7 +53,7 @@ macro_rules! warn {
 #[macro_export]
 macro_rules! info {
     ($fmt: literal $(, $($arg: tt)+)?) => {
-        $crate::console::print(format_args!(concat!("\x1b[34m", $fmt, "\x1b[0m", "\n") $(, $($arg)+)?));
+        $crate::console::print(format_args!(concat!("\x1b[34m", "[info] ", $fmt, "\x1b[0m", "\n") $(, $($arg)+)?));
     }
 }
 
@@ -61,6 +61,6 @@ macro_rules! info {
 #[macro_export]
 macro_rules! trace {
     ($fmt: literal $(, $($arg: tt)+)?) => {
-        $crate::console::print(format_args!(concat!("\x1b[90m", $fmt, "\x1b[0m", "\n") $(, $($arg)+)?));
+        $crate::console::print(format_args!(concat!("\x1b[90m", "[trace] ", $fmt, "\x1b[0m", "\n") $(, $($arg)+)?));
     }
 }

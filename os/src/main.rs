@@ -36,6 +36,8 @@ pub mod syscall;
 pub mod tools;
 pub mod trap;
 
+use tools::sleep;
+
 global_asm!(include_str!("entry.asm"));
 global_asm!(include_str!("link_app.S"));
 
@@ -51,12 +53,20 @@ fn clear_bss() {
     }
 }
 
+
+
 /// the rust entry-point of os
 #[no_mangle]
 pub fn rust_main() -> ! {
     clear_bss();
     println!("[kernel] Hello, world!");
+
+
+    sleep();
+
+    
     trap::init();
     batch::init();
     batch::run_next_app();
+
 }

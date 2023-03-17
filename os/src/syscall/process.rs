@@ -9,6 +9,5 @@ pub fn sys_exit(exit_code: i32) -> ! {
 }
 
 pub fn sys_get_taskinfo(task_info: *mut usize) -> isize {
-    println!("system_call: [sys_get_taskinfo]");
     unsafe { get_taskinfo(task_info) }
 }

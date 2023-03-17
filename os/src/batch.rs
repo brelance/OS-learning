@@ -5,6 +5,8 @@ use crate::trap::TrapContext;
 use core::arch::asm;
 use lazy_static::*;
 
+use crate::syscall::print_syscall_count;
+
 const USER_STACK_SIZE: usize = 4096 * 2;
 const KERNEL_STACK_SIZE: usize = 4096 * 2;
 const MAX_APP_NUM: usize = 16;
@@ -71,6 +73,8 @@ impl AppManager {
     unsafe fn load_app(&self, app_id: usize) {
         if app_id >= self.num_app {
             println!("All applications completed!");
+
+            print_syscall_count();
 
             #[cfg(feature = "board_qemu")]
             use crate::board::QEMUExit;
@@ -161,14 +165,10 @@ pub fn run_next_app() -> ! {
 /// get task information
 pub unsafe fn get_taskinfo(task_info: *mut usize) -> isize {
     let app_manager = APP_MANAGER.exclusive_access();
-    let task_id = app_manager.get_current_app();
+    let task_id = app_manager.get_current_app() - 1;
     task_info.write(task_id);
     task_info.add(1).write(app_manager.app_start[task_id]);
-    task_info.add(1).write(app_manager.app_start[task_id + 1]);
-
+    task_info.add(2).write(app_manager.app_start[task_id + 1]);
     drop(app_manager);
     1
-
-    // let task_info_dst = core::slice::from_raw_parts_mut(task_info.add(1), 3);
-    // task_info_dst.copy_from_slice(task_info_src);
 }

@@ -14,9 +14,9 @@
 
 mod context;
 
-use crate::batch::run_next_app;
+use crate::{batch::run_next_app};
 use crate::syscall::syscall;
-use core::arch::{asm, global_asm};
+use core::arch::{global_asm};
 use riscv::register::{
     mtvec::TrapMode,
     scause::{self, Exception, Trap},
@@ -49,12 +49,12 @@ pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
         }
         Trap::Exception(Exception::StoreFault) | Trap::Exception(Exception::StorePageFault) => {
             println!("[kernel] PageFault in application, kernel killed it.");
-            exception_trace();
+            exception_trace(cx);
             run_next_app();
         }
         Trap::Exception(Exception::IllegalInstruction) => {
             println!("[kernel] IllegalInstruction in application, kernel killed it.");
-            exception_trace();
+            exception_trace(cx);
             run_next_app();
         }
         _ => {
@@ -69,16 +69,13 @@ pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
 }
 
 /// print exception instruction and address
-pub fn exception_trace() {
-    let pc: usize;
-    let instr: usize;
-    unsafe {
-        asm!("mv {} pc", out(reg) pc);
-        asm!("ld {} pc", out(reg) instr);
-    }
-    println!(
-        "[kernel] Exception_Trace: instr_address: {:#x} instr: {:#x}",
-        pc, instr
+pub fn exception_trace(cx: &mut TrapContext) {
+    let trap_pc = cx.x[1] - 4;
+    let instr;
+    unsafe { instr= (trap_pc as *const u32).read(); }
+    trace!(
+        "Exception_Trace: instr_address: {:#x} instr: {:#x}",
+        trap_pc, instr
     );
 }
 

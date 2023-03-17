@@ -6,7 +6,9 @@ extern crate user_lib;
 
 use user_lib::get_taskinfo;
 
+#[no_mangle]
 fn main() {
+    println!("test start");
     let mut task_info: [usize; 4] = [0; 4];
     get_taskinfo(task_info.as_mut_ptr());
     println!(
