@@ -24,6 +24,8 @@ use task::{TaskControlBlock, TaskStatus};
 
 pub use context::TaskContext;
 
+mut static SWITCH_TIME_COUNTER: usize = 0; 
+
 /// The task manager, where all the tasks are managed.
 ///
 /// Functions implemented on `TaskManager` deals with all task state transitions
@@ -142,6 +144,12 @@ impl TaskManager {
             crate::board::QEMU_EXIT_HANDLE.exit_success();
         }
     }
+}
+
+fn task_switch(current_task_cx_ptr: *mut TaskContext, next_task_cx_ptr: *mut TaskContext) {
+    
+    unsafe { __switch(current_task_cx_ptr, next_task_cx_ptr); }
+
 }
 
 /// run first task
