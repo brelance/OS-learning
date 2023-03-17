@@ -96,6 +96,7 @@ impl TaskManager {
         let mut inner = self.inner.exclusive_access();
         let current = inner.current_task;
         inner.tasks[current].task_status = TaskStatus::Ready;
+        println!("tasks[{}]: Running to Ready", current);
     }
 
     /// Change the status of current `Running` task into `Exited`.
@@ -103,6 +104,7 @@ impl TaskManager {
         let mut inner = self.inner.exclusive_access();
         let current = inner.current_task;
         inner.tasks[current].task_status = TaskStatus::Exited;
+        println!("tasks[{}]: Running to Exited", current);
     }
 
     /// Find next task to run and return task id.
@@ -127,6 +129,8 @@ impl TaskManager {
             let current_task_cx_ptr = &mut inner.tasks[current].task_cx as *mut TaskContext;
             let next_task_cx_ptr = &inner.tasks[next].task_cx as *const TaskContext;
             drop(inner);
+            println!("tasks[{}]: Ready to Running", current);
+
             // before this, we should drop local variables that must be dropped manually
             unsafe {
                 __switch(current_task_cx_ptr, next_task_cx_ptr);
