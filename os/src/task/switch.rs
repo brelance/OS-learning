@@ -10,7 +10,7 @@ use core::arch::global_asm;
 use crate::timer::get_time_us;
 
 static mut SWITCH_TIME_START: usize = 0;
-static mut SWITCH_TIME_COUNTRE: usize = 0;
+static mut SWITCH_TIME_COUNTER: usize = 0;
 
 global_asm!(include_str!("switch.S"));
 
@@ -21,13 +21,16 @@ extern "C" {
 }
 
 pub unsafe fn print_switch_time() {
-    println!("[switch-time]: {} us", SWITCH_TIME_COUNTRE);
+    println!("[switch-time]: {} us", SWITCH_TIME_COUNTER);
 }
 
-pub unsafe fn task_switch(current_task_cx_ptr: *mut TaskContext, next_task_cx_ptr: *mut TaskContext) {
+pub unsafe fn task_switch(current_task_cx_ptr: *mut TaskContext, next_task_cx_ptr: *const TaskContext) {
     SWITCH_TIME_START = get_time_us();
+    println!("SWITCH_TIME_START: {}", SWITCH_TIME_START);
     __switch(current_task_cx_ptr, next_task_cx_ptr);
-    SWITCH_TIME_COUNTRE += get_time_us() - SWITCH_TIME_START;
+    println!("SWITCH_TIME_START: {}", SWITCH_TIME_COUNTER);
+
+    SWITCH_TIME_COUNTER += get_time_us() - SWITCH_TIME_START;
 }
 
 

@@ -6,6 +6,7 @@ use riscv::register::time;
 
 const TICKS_PER_SEC: usize = 100;
 const MSEC_PER_SEC: usize = 1000;
+const USEC_PER_SEC: usize = 1000000;
 
 
 /// read the `mtime` register
@@ -19,7 +20,7 @@ pub fn get_time_ms() -> usize {
 }
 
 pub fn get_time_us() -> usize {
-    time::read() / (CLOCK_FREQ)
+    time::read() /  (CLOCK_FREQ / USEC_PER_SEC)
 }
 
 /// set the next timer interrupt

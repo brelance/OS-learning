@@ -18,10 +18,9 @@ mod task;
 use crate::config::MAX_APP_NUM;
 use crate::loader::{get_num_app, init_app_cx};
 use crate::sync::UPSafeCell;
-use crate::task::switch::task_switch;
+use crate::task::switch::{task_switch, print_switch_time};
 use crate::timer::get_time_ms;
 use lazy_static::*;
-use switch::__switch;
 use task::{TaskControlBlock, TaskStatus};
 
 pub use context::TaskContext;
@@ -58,6 +57,8 @@ lazy_static! {
         let mut tasks = [TaskControlBlock {
             task_cx: TaskContext::zero_init(),
             task_status: TaskStatus::UnInit,
+            kernel_time: 0,
+            user_time: 0,
         }; MAX_APP_NUM];
         for (i, task) in tasks.iter_mut().enumerate() {
             task.task_cx = TaskContext::goto_restore(init_app_cx(i));
@@ -69,9 +70,9 @@ lazy_static! {
                 UPSafeCell::new(TaskManagerInner {
                     tasks,
                     current_task: 0,
+                    stop_time: 0,
                 })
             },
-            stop_time: 0,
         }
     };
 }
@@ -120,11 +121,11 @@ impl TaskManager {
         inner.tasks[current].task_status = TaskStatus::Exited;
         inner.tasks[current].kernel_time += inner.refresh_stop_time();
 
-        drop(inner);
         println!(
-            "tasks[{}] excited. user_time: {} ms, kernel_time: {}",
+            "tasks[{}] excited. user_time: {} ms, kernel_time: {} ms",
             current, inner.tasks[current].user_time, inner.tasks[current].kernel_time
         );
+        drop(inner);
     }
 
     /// Find next task to run and return task id.
@@ -164,20 +165,23 @@ impl TaskManager {
             // go back to user mode
         } else {
             println!("All applications completed!");
+            unsafe { print_switch_time(); }
             use crate::board::QEMUExit;
             crate::board::QEMU_EXIT_HANDLE.exit_success();
         }
     }
 
-    fn user_time_start(&mut self) {
+    fn user_time_start(&self) {
         let mut inner = self.inner.exclusive_access();
         inner.refresh_stop_time();
+        drop(inner);
     }
 
-    fn user_time_end(&mut self) {
+    fn user_time_end(&self) {
         let mut inner = self.inner.exclusive_access();
         let current = inner.current_task;
         inner.tasks[current].user_time += inner.refresh_stop_time();
+        drop(inner);
     }
 }
 
@@ -221,10 +225,13 @@ pub fn exit_current_and_run_next() {
     run_next_task();
 }
 
+
+/// user_time start point
 pub fn user_time_start() {
     TASK_MANAGER.user_time_start();
 }
 
+/// user_time end point
 pub fn user_time_end() {
     TASK_MANAGER.user_time_end();
 }
