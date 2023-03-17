@@ -1,7 +1,6 @@
 //! stack trace
 
 use core::{arch::asm, ptr};
-
 /// print stack trace
 pub unsafe fn stack_trace() -> () {
     trace!("stack_trace ");
