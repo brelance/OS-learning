@@ -18,13 +18,13 @@ mod task;
 use crate::config::MAX_APP_NUM;
 use crate::loader::{get_num_app, init_app_cx};
 use crate::sync::UPSafeCell;
+use crate::task::switch::task_switch;
+use crate::timer::get_time_ms;
 use lazy_static::*;
 use switch::__switch;
 use task::{TaskControlBlock, TaskStatus};
 
 pub use context::TaskContext;
-
-mut static SWITCH_TIME_COUNTER: usize = 0; 
 
 /// The task manager, where all the tasks are managed.
 ///
@@ -48,6 +48,7 @@ pub struct TaskManagerInner {
     tasks: [TaskControlBlock; MAX_APP_NUM],
     /// id of current `Running` task
     current_task: usize,
+    stop_time: usize,
 }
 
 lazy_static! {
@@ -70,6 +71,7 @@ lazy_static! {
                     current_task: 0,
                 })
             },
+            stop_time: 0,
         }
     };
 }
@@ -84,12 +86,20 @@ impl TaskManager {
         let task0 = &mut inner.tasks[0];
         task0.task_status = TaskStatus::Running;
         let next_task_cx_ptr = &task0.task_cx as *const TaskContext;
-        drop(inner);
         let mut _unused = TaskContext::zero_init();
+
         // before this, we should drop local variables that must be dropped manually
+
+        // unsafe {
+        //     __switch(&mut _unused as *mut TaskContext, next_task_cx_ptr);
+        // }
+
+        inner.refresh_stop_time();
+        drop(inner);
         unsafe {
-            __switch(&mut _unused as *mut TaskContext, next_task_cx_ptr);
+            task_switch(&mut _unused as *mut TaskContext, next_task_cx_ptr);
         }
+
         panic!("unreachable in run_first_task!");
     }
 
@@ -98,6 +108,8 @@ impl TaskManager {
         let mut inner = self.inner.exclusive_access();
         let current = inner.current_task;
         inner.tasks[current].task_status = TaskStatus::Ready;
+        inner.tasks[current].kernel_time += inner.refresh_stop_time();
+
         println!("tasks[{}]: Running to Ready", current);
     }
 
@@ -106,7 +118,13 @@ impl TaskManager {
         let mut inner = self.inner.exclusive_access();
         let current = inner.current_task;
         inner.tasks[current].task_status = TaskStatus::Exited;
-        println!("tasks[{}]: Running to Exited", current);
+        inner.tasks[current].kernel_time += inner.refresh_stop_time();
+
+        drop(inner);
+        println!(
+            "tasks[{}] excited. user_time: {} ms, kernel_time: {}",
+            current, inner.tasks[current].user_time, inner.tasks[current].kernel_time
+        );
     }
 
     /// Find next task to run and return task id.
@@ -130,12 +148,18 @@ impl TaskManager {
             inner.current_task = next;
             let current_task_cx_ptr = &mut inner.tasks[current].task_cx as *mut TaskContext;
             let next_task_cx_ptr = &inner.tasks[next].task_cx as *const TaskContext;
-            drop(inner);
             println!("tasks[{}]: Ready to Running", current);
 
             // before this, we should drop local variables that must be dropped manually
+            // unsafe {
+            //     __switch(current_task_cx_ptr, next_task_cx_ptr);
+            // }
+
+            inner.refresh_stop_time();
+            drop(inner);
+
             unsafe {
-                __switch(current_task_cx_ptr, next_task_cx_ptr);
+                task_switch(current_task_cx_ptr, next_task_cx_ptr);
             }
             // go back to user mode
         } else {
@@ -144,12 +168,25 @@ impl TaskManager {
             crate::board::QEMU_EXIT_HANDLE.exit_success();
         }
     }
+
+    fn user_time_start(&mut self) {
+        let mut inner = self.inner.exclusive_access();
+        inner.refresh_stop_time();
+    }
+
+    fn user_time_end(&mut self) {
+        let mut inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        inner.tasks[current].user_time += inner.refresh_stop_time();
+    }
 }
 
-fn task_switch(current_task_cx_ptr: *mut TaskContext, next_task_cx_ptr: *mut TaskContext) {
-    
-    unsafe { __switch(current_task_cx_ptr, next_task_cx_ptr); }
-
+impl TaskManagerInner {
+    fn refresh_stop_time(&mut self) -> usize {
+        let last_time = self.stop_time;
+        self.stop_time = get_time_ms();
+        self.stop_time - last_time
+    }
 }
 
 /// run first task
@@ -182,4 +219,12 @@ pub fn suspend_current_and_run_next() {
 pub fn exit_current_and_run_next() {
     mark_current_exited();
     run_next_task();
+}
+
+pub fn user_time_start() {
+    TASK_MANAGER.user_time_start();
+}
+
+pub fn user_time_end() {
+    TASK_MANAGER.user_time_end();
 }
