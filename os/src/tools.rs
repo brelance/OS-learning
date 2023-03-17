@@ -18,12 +18,14 @@ pub unsafe fn stack_trace() -> () {
     println!("=== stack trace end ===");
 }
 
+/// sleep 
 pub fn sleep() {
+    println!("here is sleep");
     let now: usize;
-    let then: usize;
     unsafe{
         asm!("rdtime {}", out(reg) now);
     }
+    let mut then = now;
     while then != now + 5 {
         unsafe{
             asm!("rdtime {}", out(reg) then);

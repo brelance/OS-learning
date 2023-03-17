@@ -33,7 +33,7 @@ mod lang_items;
 mod sbi;
 mod sync;
 pub mod syscall;
-pub mod stack_trace;
+pub mod tools;
 pub mod trap;
 
 global_asm!(include_str!("entry.asm"));
