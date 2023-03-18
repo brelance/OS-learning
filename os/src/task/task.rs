@@ -1,7 +1,7 @@
 //! Types related to task management
 
 use super::TaskContext;
-use crate::syscall::{SyscallId, SyscallInfo, };
+use crate::syscall::{SyscallId, SyscallInfo};
 
 #[derive(Copy, Clone)]
 pub struct TaskControlBlock {
