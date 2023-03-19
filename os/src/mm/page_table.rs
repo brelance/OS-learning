@@ -1,7 +1,8 @@
-use super::{frame_alloc, PhysPageNum, FrameTracker, VirtPageNum, VirtAddr, StepByOne};
-use alloc::vec::Vec;
+use super::{frame_alloc, FrameTracker, PhysPageNum, StepByOne, VirtAddr, VirtPageNum};
 use alloc::vec;
+use alloc::vec::Vec;
 use bitflags::*;
+use riscv::addr::Page;
 
 bitflags! {
     pub struct PTEFlags: u8 {
@@ -29,9 +30,7 @@ impl PageTableEntry {
         }
     }
     pub fn empty() -> Self {
-        PageTableEntry {
-            bits: 0,
-        }
+        PageTableEntry { bits: 0 }
     }
     pub fn ppn(&self) -> PhysPageNum {
         (self.bits >> 10 & ((1usize << 44) - 1)).into()
@@ -123,8 +122,7 @@ impl PageTable {
         *pte = PageTableEntry::empty();
     }
     pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
-        self.find_pte(vpn)
-            .map(|pte| {pte.clone()})
+        self.find_pte(vpn).map(|pte| pte.clone())
     }
     pub fn token(&self) -> usize {
         8usize << 60 | self.root_ppn.0
@@ -139,10 +137,7 @@ pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&
     while start < end {
         let start_va = VirtAddr::from(start);
         let mut vpn = start_va.floor();
-        let ppn = page_table
-            .translate(vpn)
-            .unwrap()
-            .ppn();
+        let ppn = page_table.translate(vpn).unwrap().ppn();
         vpn.step();
         let mut end_va: VirtAddr = vpn.into();
         end_va = end_va.min(VirtAddr::from(end));
@@ -154,4 +149,37 @@ pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&
         start = end_va.into();
     }
     v
+}
+
+pub fn write_bytes_buffer(dst_token: usize, dst: *mut u8, src: *const u8, len: usize) -> isize {
+    let page_table = PageTable::from_token(dst_token);
+    let src_start = src as usize;
+    let src_end = start + len;
+
+    let mut dstart = dst as usize;
+    let mut rest = len;
+
+    while src_start < src_end {
+        let dst_start_va = VirtAddr::from(dstart);
+        let mut vpn = dst_start_va.floor();
+        let ppn = page_table.translate(vpn).unwrap().ppn();
+        vpn.step();
+        let mut dst_end_va: VirtAddr = vpn.into();
+        let dst_end_va = dst_end_va.min(dst_start_va + rest);
+
+        if dst_end_va.page_offset() == 0 {
+            let ddst = &mut ppn.get_bytes_array()[dst_start_va.page_offset()..];
+            rest -= dst_end_va - dst_start_va;
+        } else {
+            let ddst = &mut ppn.get_bytes_array()[dst_start_va.page_offset()..dst_end_va];
+        }
+        unsafe {
+            let ssrc = core::slice::from_raw_parts(start as *const u8, dst_end_va - dst_start_va);
+            ddst.copy_from_slice(ssrc);
+        }
+
+        dstart = dst_end_va;
+        src_start += dst_end_va - dst_start_va;
+    }
+        1
 }

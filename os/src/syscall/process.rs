@@ -1,7 +1,5 @@
-use crate::task::{
-    suspend_current_and_run_next,
-    exit_current_and_run_next,
-};
+use crate::mm::write_bytes_buffer;
+use crate::task::{current_user_token, exit_current_and_run_next, suspend_current_and_run_next};
 use crate::timer::get_time_us;
 
 #[repr(C)]
@@ -24,11 +22,14 @@ pub fn sys_yield() -> isize {
 
 pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
     let _us = get_time_us();
-    // unsafe {
-    //     *ts = TimeVal {
-    //         sec: us / 1_000_000,
-    //         usec: us % 1_000_000,
-    //     };
-    // }
-    0
+    let time = TimeVal {
+        sec: us / 1_000_000,
+        usec: us % 1_000_000,
+    };
+    write_bytes_buffer(
+        current_user_token(),
+        _ts as usize as *mut u8,
+        &time as *const u8,
+        16,
+    )
 }
