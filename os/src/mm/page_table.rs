@@ -151,9 +151,10 @@ pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&
     v
 }
 
+
 pub fn write_bytes_buffer(dst_token: usize, dst: *mut u8, src: *const u8, len: usize) -> isize {
     let page_table = PageTable::from_token(dst_token);
-    let src_start = src as usize;
+    let mut src_start = src as usize;
     let src_end = src_start + len;
 
     let mut dstart = dst as usize;
@@ -164,20 +165,24 @@ pub fn write_bytes_buffer(dst_token: usize, dst: *mut u8, src: *const u8, len: u
         let mut vpn = dst_start_va.floor();
         let ppn = page_table.translate(vpn).unwrap().ppn();
         vpn.step();
-        let mut dst_end_va: VirtAddr = vpn.into();
+
+        let dst_end_va: VirtAddr = vpn.into();
         let dst_end_va = dst_end_va.min((dst_start_va.0 + rest).into());
 
         let ddst = if dst_end_va.page_offset() == 0 {
-            rest -= dst_end_va.0 - dst_start_va.0;
+            rest -= dst_end_va.0- dst_start_va.0;
             &mut ppn.get_bytes_array()[dst_start_va.page_offset()..]
         } else {
-            core::slice::from_raw_parts(start as *const u8, dst_end_va - dst_start_va)
+            &mut ppn.get_bytes_array()[dst_start_va.page_offset()..dst_end_va.0]
         };
 
-        ddst.copy_from_slice(src[src_start..])
+        unsafe {
+            let ssrc = core::slice::from_raw_parts(src_start as *const u8, dst_end_va.0 - dst_start_va.0);
+            ddst.copy_from_slice(ssrc);
+        }
 
-        dstart = dst_end_va;
-        src_start += dst_end_va - dst_start_va;
+        dstart = dst_end_va.0;
+        src_start += dst_end_va.0 - dst_start_va.0;
     }
-        1
+    0
 }

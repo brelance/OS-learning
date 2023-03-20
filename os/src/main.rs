@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
-#![feature(global_asm)]
-#![feature(asm)]
+// #![feature(global_asm)]
+// #![feature(asm)]
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
 
@@ -22,6 +22,10 @@ mod task;
 mod timer;
 mod sync;
 mod mm;
+
+use core::arch::asm;
+use core::arch::global_asm;
+
 
 global_asm!(include_str!("entry.asm"));
 global_asm!(include_str!("link_app.S"));

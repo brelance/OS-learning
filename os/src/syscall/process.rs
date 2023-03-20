@@ -29,7 +29,7 @@ pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
     write_bytes_buffer(
         current_user_token(),
         _ts as usize as *mut u8,
-        &time as *const u8,
+        &time as *const _ as *const u8,
         16,
     )
 }
