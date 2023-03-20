@@ -10,7 +10,7 @@
 
             "miDebuggerPath": "/usr/bin/gdb-multiarch",
             "cwd": "${workspaceRoot}",
-            "preLaunchTask": "rcore-build"
+            // "preLaunchTask": "rcore-build"
         }
     ]
 }

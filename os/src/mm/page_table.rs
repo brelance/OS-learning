@@ -151,7 +151,6 @@ pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&
     v
 }
 
-
 pub fn write_bytes_buffer(dst_token: usize, dst: *mut u8, src: *const u8, len: usize) -> isize {
     let page_table = PageTable::from_token(dst_token);
     let mut src_start = src as usize;
@@ -170,14 +169,15 @@ pub fn write_bytes_buffer(dst_token: usize, dst: *mut u8, src: *const u8, len: u
         let dst_end_va = dst_end_va.min((dst_start_va.0 + rest).into());
 
         let ddst = if dst_end_va.page_offset() == 0 {
-            rest -= dst_end_va.0- dst_start_va.0;
+            rest -= dst_end_va.0 - dst_start_va.0;
             &mut ppn.get_bytes_array()[dst_start_va.page_offset()..]
         } else {
-            &mut ppn.get_bytes_array()[dst_start_va.page_offset()..dst_end_va.0]
+            &mut ppn.get_bytes_array()[dst_start_va.page_offset()..dst_end_va.page_offset()]
         };
 
         unsafe {
-            let ssrc = core::slice::from_raw_parts(src_start as *const u8, dst_end_va.0 - dst_start_va.0);
+            let ssrc =
+                core::slice::from_raw_parts(src_start as *const u8, dst_end_va.0 - dst_start_va.0);
             ddst.copy_from_slice(ssrc);
         }
 

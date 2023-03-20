@@ -5,7 +5,7 @@
             "label": "rcore-build",
             "type": "shell",
             "isBackground": true,
-            "command": "cd os && make gdbserver"
+            "command": "cd os && make TEST=1 gdbserver"
         }
     ]
 }
