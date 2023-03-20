@@ -1,0 +1,16 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "cppdbg",
+            "request": "launch",
+            "name": "rcore-debug",
+            "program": "${workspaceFolder}/os/target/riscv64gc-unknown-none-elf/release/os",
+            "miDebuggerServerAddress": "localhost:1234",
+
+            "miDebuggerPath": "/usr/bin/gdb-multiarch",
+            "cwd": "${workspaceRoot}",
+            "preLaunchTask": "rcore-build"
+        }
+    ]
+}
