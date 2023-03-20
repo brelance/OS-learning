@@ -1,12 +1,8 @@
-use super::memory_set::MapArea;
 use super::{frame_alloc, FrameTracker, PhysPageNum, StepByOne, VirtAddr, VirtPageNum, MapPermission};
-use _core::{usize, mem};
+use _core::{usize};
 use alloc::vec;
 use alloc::vec::Vec;
 use bitflags::*;
-use riscv::addr::Page;
-use riscv::paging::MapToError;
-use crate::task::current_memory_set;
 // use riscv::addr::Page;
 
 bitflags! {
@@ -191,32 +187,4 @@ pub fn write_bytes_buffer(dst_token: usize, dst: *mut u8, src: *const u8, len: u
     }
     0
 }
-
-pub fn mmap(token: usize, start: usize, len: usize, prot: usize) -> isize {
-    let mut pagetable = PageTable::from_token(token);
-    let end = start + len;
-
-    let start_va : VirtAddr = start.into();
-    let start_vpn = start_va.ceil();
-    let end_va: VirtAddr = end.into();
-    let end_vpn = end_va.ceil();
-
-    let mut memory_set = current_memory_set();
-    let perm = match prot {
-        1 => MapPermission::R,
-        3 => MapPermission::R | MapPermission::W,
-        5 => MapPermission::R | MapPermission::X,
-        6 => MapPermission::W | MapPermission::X,
-        7 => MapPermission::R | MapPermission::W | MapPermission::X,
-        _ => {
-            println!("map permissions are not correrct");
-            return -1;
-        }
-    };
-
-    memory_set.insert_framed_area(start_va, end_va, perm | MapPermission::U);
-    0
-}
-
-
 

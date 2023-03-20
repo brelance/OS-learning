@@ -159,6 +159,9 @@ impl<T> SimpleRange<T> where
     }
     pub fn get_start(&self) -> T { self.l }
     pub fn get_end(&self) -> T { self.r }
+    pub fn contain(&self, start: T) -> bool {
+        self.l <= start && start < self.r
+    }
 }
 impl<T> IntoIterator for SimpleRange<T> where
     T: StepByOne + Copy + PartialEq + PartialOrd + Debug, {
