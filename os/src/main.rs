@@ -23,7 +23,7 @@ mod timer;
 mod sync;
 mod mm;
 
-use core::arch::asm;
+// use core::arch::asm;
 use core::arch::global_asm;
 
 
