@@ -154,7 +154,7 @@ pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&
 pub fn write_bytes_buffer(dst_token: usize, dst: *mut u8, src: *const u8, len: usize) -> isize {
     let page_table = PageTable::from_token(dst_token);
     let src_start = src as usize;
-    let src_end = start + len;
+    let src_end = src_start + len;
 
     let mut dstart = dst as usize;
     let mut rest = len;
