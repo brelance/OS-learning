@@ -165,18 +165,16 @@ pub fn write_bytes_buffer(dst_token: usize, dst: *mut u8, src: *const u8, len: u
         let ppn = page_table.translate(vpn).unwrap().ppn();
         vpn.step();
         let mut dst_end_va: VirtAddr = vpn.into();
-        let dst_end_va = dst_end_va.min(dst_start_va + rest);
+        let dst_end_va = dst_end_va.min((dst_start_va.0 + rest).into());
 
-        if dst_end_va.page_offset() == 0 {
-            let ddst = &mut ppn.get_bytes_array()[dst_start_va.page_offset()..];
-            rest -= dst_end_va - dst_start_va;
+        let ddst = if dst_end_va.page_offset() == 0 {
+            rest -= dst_end_va.0 - dst_start_va.0;
+            &mut ppn.get_bytes_array()[dst_start_va.page_offset()..]
         } else {
-            let ddst = &mut ppn.get_bytes_array()[dst_start_va.page_offset()..dst_end_va];
-        }
-        unsafe {
-            let ssrc = core::slice::from_raw_parts(start as *const u8, dst_end_va - dst_start_va);
-            ddst.copy_from_slice(ssrc);
-        }
+            core::slice::from_raw_parts(start as *const u8, dst_end_va - dst_start_va)
+        };
+
+        ddst.copy_from_slice(src[src_start..])
 
         dstart = dst_end_va;
         src_start += dst_end_va - dst_start_va;

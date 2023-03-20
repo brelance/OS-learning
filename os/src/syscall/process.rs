@@ -23,8 +23,8 @@ pub fn sys_yield() -> isize {
 pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
     let _us = get_time_us();
     let time = TimeVal {
-        sec: us / 1_000_000,
-        usec: us % 1_000_000,
+        sec: _us / 1_000_000,
+        usec: _us % 1_000_000,
     };
     write_bytes_buffer(
         current_user_token(),
