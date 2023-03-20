@@ -1,4 +1,4 @@
-use crate::mm::write_bytes_buffer;
+use crate::mm::{write_bytes_buffer, mmap};
 use crate::task::{current_user_token, exit_current_and_run_next, suspend_current_and_run_next};
 use crate::timer::get_time_us;
 
@@ -32,4 +32,12 @@ pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
         &time as *const _ as *const u8,
         16,
     )
+}
+
+pub fn sys_mmap(start: usize, len: usize, prot: usize) -> isize {
+    mmap(current_user_token(), start, len, prot)
+}
+
+pub fn sys_munmap(start: usize, len: usize) -> isize {
+    0
 }
