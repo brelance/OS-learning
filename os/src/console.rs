@@ -31,7 +31,6 @@ macro_rules! println {
 }
 
 
-/// error log
 #[macro_export]
 macro_rules! error {
     ($fmt: literal $(, $($arg: tt)+)?) => {

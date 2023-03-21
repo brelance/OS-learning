@@ -99,7 +99,7 @@ impl MemorySet {
 
         let end_va: VirtAddr = (start + len).into();
 
-        let mut start_vpn: VirtPageNum = start_va.floor();
+        let start_vpn: VirtPageNum = start_va.floor();
         let end_vpn: VirtPageNum = end_va.ceil();
         
         println!("[kernel] munmap start_vpn {:#x} end_vpn {:#x}", start_vpn.0, end_vpn.0);

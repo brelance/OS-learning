@@ -64,6 +64,10 @@ pub fn trap_handler() -> ! {
             println!("[kernel] PageFault in application, bad addr = {:#x}, bad instruction = {:#x}, core dumped.", stval, cx.sepc);
             exit_current_and_run_next();
         }
+        Trap::Exception(Exception::LoadPageFault) => {
+            println!("[kernel] LoadPageFault in application, bad addr = {:#x}, bad instruction = {:#x}, core dumped.", stval, cx.sepc);
+            exit_current_and_run_next();
+        }
         Trap::Exception(Exception::IllegalInstruction) => {
             println!("[kernel] IllegalInstruction in application, core dumped.");
             exit_current_and_run_next();
@@ -72,6 +76,7 @@ pub fn trap_handler() -> ! {
             set_next_trigger();
             suspend_current_and_run_next();
         }
+        // Trap::Exception(Exception::LoadFault)
         _ => {
             panic!("Unsupported trap {:?}, stval = {:#x}!", scause.cause(), stval);
         }
