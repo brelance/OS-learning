@@ -16,10 +16,6 @@ impl TaskControlBlock {
         self.trap_cx_ppn.get_mut()
     }
 
-    pub fn get_memory_set(&self) -> &'static mut MemorySet {
-        &mut self.memory_set
-    }
-
     pub fn get_user_token(&self) -> usize {
         self.memory_set.token()
     }

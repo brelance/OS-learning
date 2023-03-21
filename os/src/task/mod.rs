@@ -3,7 +3,6 @@ mod switch;
 mod task;
 
 use crate::loader::{get_num_app, get_app_data};
-use crate::mm::MemorySet;
 use crate::trap::TrapContext;
 use crate::sync::UPSafeCell;
 use lazy_static::*;
@@ -95,9 +94,16 @@ impl TaskManager {
         inner.tasks[inner.current_task].get_trap_cx()
     }
 
-    fn get_current_memory_set(&self) -> &mut MemorySet {
-        let inner = self.inner.exclusive_access();
-        inner.tasks[inner.current_task].get_memory_set()
+    fn current_task_map(&self,start: usize, len: usize, prot: usize) -> isize {
+        let mut inner = self.inner.exclusive_access();
+        let current_task_id = inner.current_task;
+        inner.tasks[current_task_id].memory_set.mmap(start, len, prot)
+    }
+
+    fn current_task_munmap(&self, start: usize, len: usize) -> isize {
+        let mut inner = self.inner.exclusive_access();
+        let current_task_id = inner.current_task;
+        inner.tasks[current_task_id].memory_set.munmap(start, len)
     }
 
     fn run_next_task(&self) {
@@ -157,6 +163,10 @@ pub fn current_trap_cx() -> &'static mut TrapContext {
     TASK_MANAGER.get_current_trap_cx()
 }
 
-pub fn current_memory_set() -> &'static mut MemorySet {
-    TASK_MANAGER.get_current_memory_set()
+pub fn mmap(start: usize, len: usize, prot: usize) -> isize {
+    TASK_MANAGER.current_task_map(start, len, prot)
+}
+
+pub fn munmap(start: usize, len: usize) -> isize {
+    TASK_MANAGER.current_task_munmap(start, len)
 }

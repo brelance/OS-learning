@@ -51,11 +51,11 @@ impl MemorySet {
         start_va: VirtAddr,
         end_va: VirtAddr,
         permission: MapPermission,
-    ) {
+    ) -> isize {
         self.push(
             MapArea::new(start_va, end_va, MapType::Framed, permission),
             None,
-        );
+        )
     }
 
     pub fn mmap(&mut self, start: usize, len: usize, prot: usize) -> isize {
@@ -63,57 +63,76 @@ impl MemorySet {
             return 0;
         }
 
-        let mut pagetable = &mut self.page_table;
-        let end = start + len;
         let start_va: VirtAddr = start.into();
+        if start_va.page_offset() != 0 {
+            println!("[kernel] map start address is not page align");
+            return -1;
+        }
+
+        let end = start + len;
         let end_va: VirtAddr = end.into();
 
         let perm = match prot {
             1 => MapPermission::R,
+            2 => MapPermission::W,
             3 => MapPermission::R | MapPermission::W,
+            4 => MapPermission::X,
             5 => MapPermission::R | MapPermission::X,
             6 => MapPermission::W | MapPermission::X,
             7 => MapPermission::R | MapPermission::W | MapPermission::X,
             _ => {
-                println!("map permissions are not correrct");
+                println!("[kernel] map permissions are not correrct");
                 return -1;
             }
         };
 
-        self.insert_framed_area(start_va, end_va, perm | MapPermission::U);
-        0
+        self.insert_framed_area(start_va, end_va, perm | MapPermission::U)
     }
 
 
     pub fn munmap(&mut self, start: usize, len: usize) -> isize {
         let start_va: VirtAddr = start.into();
+        if start_va.page_offset() != 0 {
+            println!("[kernel] munmap start address is not page align");
+            return -1;
+        }
+
         let end_va: VirtAddr = (start + len).into();
 
         let mut start_vpn: VirtPageNum = start_va.floor();
         let end_vpn: VirtPageNum = end_va.ceil();
         
+        println!("[kernel] munmap start_vpn {:#x} end_vpn {:#x}", start_vpn.0, end_vpn.0);
         for area in &mut self.areas {
+            // let s = area.vpn_range.get_start();
+            // let e = area.vpn_range.get_end();
+            // println!("area range start {:#x}, end {:#x}", s.0, e.0);
             if area.vpn_range.contain(start_vpn) {
-                let e_vpn = end_vpn.min(area.vpn_range.get_end());
+                // let e_vpn = end_vpn.min(area.vpn_range.get_end());
 
-                let range = VPNRange::new(start_vpn, e_vpn);
-                start_vpn = e_vpn;
-                if start_vpn >= end_vpn {
-                    break;
-                }
-                area.munmap(&mut self.page_table, range);
-                break;
+                let range = VPNRange::new(start_vpn, end_vpn);
+                if area.munmap(&mut self.page_table, range) == -1 {
+                    return -1;
+                };
+
+                // start_vpn = e_vpn;
+                // if start_vpn >= end_vpn {
+                //     break;
+                // }
             }
         }
         0
     }
 
-    fn push(&mut self, mut map_area: MapArea, data: Option<&[u8]>) {
-        map_area.map(&mut self.page_table);
+    fn push(&mut self, mut map_area: MapArea, data: Option<&[u8]>) -> isize {
+        if map_area.map(&mut self.page_table) == -1 {
+            return -1;
+        };
         if let Some(data) = data {
             map_area.copy_data(&mut self.page_table, data);
         }
         self.areas.push(map_area);
+        0
     }
     /// Mention that trampoline is not collected by areas.
     fn map_trampoline(&mut self) {
@@ -291,7 +310,7 @@ impl MapArea {
             map_perm,
         }
     }
-    pub fn map_one(&mut self, page_table: &mut PageTable, vpn: VirtPageNum) {
+    pub fn map_one(&mut self, page_table: &mut PageTable, vpn: VirtPageNum) -> isize {
         let ppn: PhysPageNum;
         match self.map_type {
             MapType::Identical => {
@@ -304,22 +323,25 @@ impl MapArea {
             }
         }
         let pte_flags = PTEFlags::from_bits(self.map_perm.bits).unwrap();
-        page_table.map(vpn, ppn, pte_flags);
+        page_table.map(vpn, ppn, pte_flags)
     }
     #[allow(unused)]
-    pub fn unmap_one(&mut self, page_table: &mut PageTable, vpn: VirtPageNum) {
+    pub fn unmap_one(&mut self, page_table: &mut PageTable, vpn: VirtPageNum) -> isize {
         match self.map_type {
             MapType::Framed => {
                 self.data_frames.remove(&vpn);
             }
             _ => {}
         }
-        page_table.unmap(vpn);
+        page_table.unmap(vpn)
     }
-    pub fn map(&mut self, page_table: &mut PageTable) {
+    pub fn map(&mut self, page_table: &mut PageTable) -> isize {
         for vpn in self.vpn_range {
-            self.map_one(page_table, vpn);
+            if self.map_one(page_table, vpn) == -1 {
+                return -1;
+            };
         }
+        0
     }
     #[allow(unused)]
     pub fn unmap(&mut self, page_table: &mut PageTable) {
@@ -328,10 +350,13 @@ impl MapArea {
         }
     }
     #[allow(unused)]
-    pub fn munmap(&mut self, page_table: &mut PageTable, range: VPNRange) {
+    pub fn munmap(&mut self, page_table: &mut PageTable, range: VPNRange) -> isize {
         for vpn in range {
-            self.unmap_one(page_table, vpn);
+            if self.unmap_one(page_table, vpn) == -1 {
+                return -1;
+            }
         }
+        0
     }
 
     /// data: start-aligned but maybe with shorter length

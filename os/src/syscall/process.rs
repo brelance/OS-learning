@@ -1,5 +1,10 @@
-use crate::mm::{write_bytes_buffer};
-use crate::task::{current_user_token, exit_current_and_run_next, suspend_current_and_run_next, current_memory_set};
+use crate::mm::write_bytes_buffer;
+use crate::task::{
+    current_user_token,
+    exit_current_and_run_next,
+    suspend_current_and_run_next,
+    mmap, munmap
+};
 use crate::timer::get_time_us;
 
 #[repr(C)]
@@ -35,11 +40,9 @@ pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
 }
 
 pub fn sys_mmap(start: usize, len: usize, prot: usize) -> isize {
-    let mut memory_set = current_memory_set();
-    memory_set.mmap(start, len, prot)
+    mmap(start, len, prot)
 }
 
 pub fn sys_munmap(start: usize, len: usize) -> isize {
-    let mut memory_set = current_memory_set();
-    memory_set.munmap(start, len)
+    munmap(start, len)
 }
