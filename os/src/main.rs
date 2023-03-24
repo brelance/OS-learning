@@ -36,7 +36,6 @@ pub mod syscall;
 pub mod tools;
 pub mod trap;
 
-use tools::sleep;
 
 global_asm!(include_str!("entry.asm"));
 global_asm!(include_str!("link_app.S"));

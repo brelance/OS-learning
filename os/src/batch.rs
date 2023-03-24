@@ -5,7 +5,6 @@ use crate::trap::TrapContext;
 use core::arch::asm;
 use lazy_static::*;
 
-use crate::syscall::print_syscall_count;
 
 const USER_STACK_SIZE: usize = 4096 * 2;
 const KERNEL_STACK_SIZE: usize = 4096 * 2;
