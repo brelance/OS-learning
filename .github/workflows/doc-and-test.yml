@@ -4,7 +4,7 @@ on: [push]
 
 env:
   CARGO_TERM_COLOR: always
-  rust_toolchain: nightly-2023-3-19
+  rust_toolchain: nightly-2023-03-19
 
 jobs:
   build-doc:
